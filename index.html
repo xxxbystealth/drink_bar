@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>都蘭茶飲 - 比例調配挑戰</title>
+    <style>
+        :root { --table-height: 32vh; }
+        * { box-sizing: border-box; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #fce4ec; }
+
+        /* 畫面切換控制 */
+        .screen { display: none; width: 100%; height: 100%; position: relative; }
+        #main-menu.active { display: flex; }
+        #records-screen.active, #leaderboard-screen.active { display: flex; }
+        #game-container.active { display: block; }
+
+        /* ================= 主選單畫面 ================= */
+        #main-menu { background: url('main-bg.png') center/cover no-repeat; flex-direction: column; align-items: center; justify-content: center; }
+        .main-btn-group { display: flex; flex-direction: column; gap: 40px; }
+        .main-btn { color: white; border: 6px solid rgba(255, 255, 255, 0.85); border-radius: 25px; padding: 25px 50px; font-size: 40px; font-weight: bold; cursor: pointer; transition: all 0.15s ease-out; text-shadow: 2px 2px 5px rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .main-btn:hover { transform: scale(1.05); border-color: #fff; }
+        
+        .btn-practice { background: rgba(76, 175, 80, 0.9); box-shadow: 0 10px 0 #388e3c, 0 20px 30px rgba(0,0,0,0.5); }
+        .btn-practice:active { transform: translateY(10px) scale(1.05); box-shadow: 0 0px 0 #388e3c, 0 5px 10px rgba(0,0,0,0.5); }
+        .btn-competition { background: rgba(33, 150, 243, 0.9); box-shadow: 0 10px 0 #1976d2, 0 20px 30px rgba(0,0,0,0.5); }
+        .btn-competition:active { transform: translateY(10px) scale(1.05); box-shadow: 0 0px 0 #1976d2, 0 5px 10px rgba(0,0,0,0.5); }
+        .btn-records { background: rgba(156, 39, 176, 0.9); box-shadow: 0 10px 0 #7b1fa2, 0 20px 30px rgba(0,0,0,0.5); }
+        .btn-records:active { transform: translateY(10px) scale(1.05); box-shadow: 0 0px 0 #7b1fa2, 0 5px 10px rgba(0,0,0,0.5); }
+        .btn-leaderboard { background: rgba(244, 67, 54, 0.9); box-shadow: 0 10px 0 #c62828, 0 20px 30px rgba(0,0,0,0.5); }
+        .btn-leaderboard:active { transform: translateY(10px) scale(1.05); box-shadow: 0 0px 0 #c62828, 0 5px 10px rgba(0,0,0,0.5); }
+
+        /* ================= 紀錄與排行榜畫面 ================= */
+        #records-screen, #leaderboard-screen { background: #fff8e1; flex-direction: column; align-items: center; padding: 50px; overflow-y: auto; }
+        .records-title { font-size: 64px; color: #5d4037; font-weight: bold; margin-bottom: 30px; border-bottom: 5px solid #ff9800; padding-bottom: 10px; }
+        .record-list { width: 80%; max-width: 800px; list-style: none; padding: 0; margin: 0 0 40px 0; }
+        .record-item { background: white; border-radius: 15px; padding: 20px 30px; margin-bottom: 15px; font-size: 32px; font-weight: bold; color: #333; display: flex; justify-content: space-between; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-left: 10px solid #2196f3; }
+        .record-item.empty { text-align: center; justify-content: center; color: #999; border-left: none; }
+        .btn-back { background: #757575; box-shadow: 0 8px 0 #424242; align-self: center; border: 6px solid #fff; padding: 20px 40px; font-size: 36px; border-radius: 20px; color: white; cursor: pointer; font-weight: bold;}
+        .btn-back:active { transform: translateY(8px); box-shadow: 0 0 0 transparent; }
+
+        /* ================= 遊戲畫面 ================= */
+        #game-container { background: url('bg.png') center/cover no-repeat; }
+        
+        #back-to-menu-btn { 
+            position: absolute; 
+            bottom: 25px; 
+            right: 25px; 
+            background: #607d8b; 
+            color: white; 
+            border: 4px solid #fff; 
+            border-radius: 15px; 
+            padding: 20px 40px; 
+            font-size: 28px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            box-shadow: 0 6px 0 #455a64; 
+            z-index: 20; 
+            transition: 0.1s; 
+        }
+        #back-to-menu-btn:active { transform: translateY(6px); box-shadow: 0 0 0 transparent; }
+
+        #customer-img { position: absolute; bottom: var(--table-height); left: 50%; transform: translateX(-50%); height: 66vh; max-height: 600px; object-fit: contain; z-index: 2; pointer-events: none; transition: opacity 0.3s; }
+        #dashboard { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 20px; z-index: 5; }
+        .dash-item { font-size: 42px; font-weight: bold; color: white; padding: 20px 40px; border-radius: 20px; box-shadow: 0 6px 12px rgba(0,0,0,0.4); text-align: center; letter-spacing: 2px; }
+        .score-box { background: #4caf50; border: 4px solid #388e3c; }
+        .time-box { background: #f44336; border: 4px solid #d32f2f; }
+
+        #recipe-board { position: absolute; top: 8%; right: 3%; background: #eef1f5; border: 16px solid #1a1a1a; border-radius: 12px; padding: 30px 40px; z-index: 5; box-shadow: 0 15px 30px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.8); text-align: center; min-height: 280px; display: flex; flex-direction: column; justify-content: center; outline: 2px solid #555; outline-offset: -16px; }
+        #recipe-board::before { content: ''; position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 80px; height: 30px; background: #333; border-radius: 5px 5px 0 0; z-index: -1; box-shadow: inset 0 5px 5px rgba(0,0,0,0.5); }
+        .recipe-title { font-size: 32px; font-weight: bold; color: #5d4037; border-bottom: 4px solid #795548; padding-bottom: 15px; margin-bottom: 20px; }
+        .recipe-capacity, .recipe-content { font-size: 40px; font-weight: bold; color: #333; white-space: nowrap; }
+        .recipe-capacity { margin-bottom: 15px; }
+        .recipe-content span { color: #d32f2f; font-size: 64px; margin: 0 5px; vertical-align: middle; }
+
+        .dialog-box { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.95); padding: 30px 60px; border-radius: 25px; border: 6px solid #ff9800; box-shadow: 0 10px 20px rgba(0,0,0,0.3); text-align: center; z-index: 3; min-width: 550px; }
+        .dialog-box::after { content: ''; position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); border-width: 24px 24px 0; border-style: solid; border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent; }
+        .dialog-box::before { content: ''; position: absolute; bottom: -32px; left: 50%; transform: translateX(-50%); border-width: 29px 29px 0; border-style: solid; border-color: #ff9800 transparent transparent transparent; z-index: -1; }
+        .order-title { font-size: 46px; font-weight: bold; color: #333; margin: 0; }
+        .order-title span { color: #d32f2f; font-size: 56px; margin: 0 5px; }
+
+        .feedback-bubble { position: absolute; top: 30%; left: calc(50% + 14vw); background: white; padding: 25px 35px; border-radius: 30px; border: 6px solid #333; box-shadow: 6px 6px 0px rgba(0,0,0,0.2); font-size: 30px; font-weight: bold; z-index: 6; opacity: 0; pointer-events: none; transform: scale(0.8); transition: opacity 0.2s ease-out, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-width: 350px; line-height: 1.5; }
+        .feedback-bubble.show { opacity: 1; transform: scale(1); }
+        .feedback-bubble::before { content: ''; position: absolute; top: 50%; left: -26px; transform: translateY(-50%); border-width: 15px 20px 15px 0; border-style: solid; border-color: transparent #333 transparent transparent; }
+        .feedback-bubble::after { content: ''; position: absolute; top: 50%; left: -16px; transform: translateY(-50%); border-width: 10px 14px 10px 0; border-style: solid; border-color: transparent white transparent transparent; }
+        .feedback-success { color: #2e7d32; }
+        .feedback-error { color: #c62828; }
+
+        #submit-btn { position: absolute; bottom: 1.5vh; left: 50%; transform: translateX(-50%); width: 25vw; background: #ff5722; color: white; border: none; border-radius: 20px; padding: 1.5vh 0; font-size: 2vw; font-weight: bold; letter-spacing: 5px; cursor: pointer; box-shadow: 0 6px 0 #e64a19, 0 10px 15px rgba(0,0,0,0.4); transition: all 0.2s ease-out; z-index: 10; }
+        #submit-btn:hover { transform: translateX(-50%) scale(1.05); filter: brightness(1.15); }
+        #submit-btn:active { transform: translate(-50%, 6px) scale(1.05); box-shadow: 0 0px 0 #e64a19, 0 4px 4px rgba(0,0,0,0.3); filter: brightness(1); }
+        #submit-btn:disabled { background: #9e9e9e; box-shadow: 0 6px 0 #757575; cursor: not-allowed; transform: translateX(-50%); filter: brightness(1); }
+
+        #bottom-area { position: absolute; bottom: 0; left: 0; width: 100vw; height: var(--table-height); z-index: 4; }
+        .barrel-row { position: absolute; bottom: 40%; left: 0; width: 100vw; display: flex; padding: 0 4vw; gap: 2.5vw; box-sizing: border-box; align-items: flex-end; }
+        .barrel-item { width: 11vw; display: flex; flex-direction: column; align-items: center; }
+        .barrel-body { position: relative; width: 100%; }
+        .barrel-img { width: 100%; display: block; object-fit: contain; filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.4)); }
+        .barrel-label { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); width: 55%; background: rgba(255, 248, 225, 0.95); padding: 0.3vw 0; border-radius: 5px; font-weight: bold; color: #5d4037; border: 2px solid #ffb300; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; text-align: center; font-size: 1.4vw; }
+        .barrel-input { width: 70%; height: 4.5vh; min-height: 40px; font-size: 26px; text-align: center; font-weight: bold; border: 3px solid #ccc; border-radius: 10px; outline: none; transition: 0.2s; background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 1.5vh; }
+        .barrel-input:focus { border-color: #ff9800; box-shadow: 0 0 10px #ff9800; }
+
+        .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: white; padding: 50px 80px; border-radius: 30px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-content h1 { font-size: 54px; color: #d32f2f; margin-top: 0; margin-bottom: 40px; }
+        .modal-content p { font-size: 36px; font-weight: bold; color: #333; }
+        .modal-content .final-score { font-size: 80px; font-weight: bold; color: #4caf50; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<audio id="snd-click" src="click.mp3" preload="auto"></audio>
+<audio id="snd-success" src="success.mp3" preload="auto"></audio>
+<audio id="snd-fail" src="fail.mp3" preload="auto"></audio>
+<audio id="snd-tick" src="tick.mp3" preload="auto"></audio>
+<audio id="snd-timesup" src="timesup.mp3" preload="auto"></audio>
+<audio id="bgm-normal" src="bgm-normal.mp3" loop preload="auto"></audio>
+<audio id="bgm-tense" src="bgm-tense.mp3" loop preload="auto"></audio>
+
+<div id="main-menu" class="screen active">
+    <div class="main-btn-group">
+        <button class="main-btn btn-practice" onclick="startGame('practice')">練習版</button>
+        <button class="main-btn btn-competition" onclick="startGame('competition')">比賽版</button>
+        <button class="main-btn btn-records" onclick="showRecords()">個人紀錄</button>
+        <button class="main-btn btn-leaderboard" onclick="showLeaderboard()">班級排行榜</button>
+    </div>
+</div>
+
+<div id="records-screen" class="screen">
+    <div class="records-title">🏆 個人比賽紀錄 🏆</div>
+    <ul class="record-list" id="record-list-container"></ul>
+    <button class="btn-back" onclick="goToMainMenu()">回主畫面</button>
+</div>
+
+<div id="leaderboard-screen" class="screen">
+    <div class="records-title">🔥 班級排行榜 🔥</div>
+    <ul class="record-list" id="class-record-list-container"></ul>
+    <button class="btn-back" onclick="goToMainMenu()">回主畫面</button>
+</div>
+
+<div id="game-container" class="screen">
+    <button id="back-to-menu-btn" onclick="goToMainMenu()">返回主畫面</button>
+    <div id="dashboard">
+        <div class="dash-item score-box">成功杯數：<span id="score">0</span></div>
+        <div class="dash-item time-box" id="timer-container">時間：<span id="timer-text">無限制</span></div>
+    </div>
+    <div id="recipe-board">
+        <div class="recipe-title">📺 本單配方提示</div>
+        <div class="recipe-capacity" id="current-capacity">大杯容量：600 c.c.</div>
+        <div class="recipe-content" id="current-recipe"></div>
+    </div>
+    <div class="dialog-box" id="dialog-box">
+        <div class="order-title">我要一杯<span id="order-size-name">大杯</span>的<span id="order-name">經典奶茶</span></div>
+    </div>
+    <img id="customer-img" src="teacher1.png" alt="老師圖片">
+    <div id="feedback-bubble" class="feedback-bubble"></div>
+    <div id="bottom-area"><div class="barrel-row" id="barrel-row-container"></div></div>
+    <button id="submit-btn" onclick="checkAnswer()">端出飲料</button>
+</div>
+
+<div class="modal-overlay" id="game-over-modal">
+    <div class="modal-content">
+        <h1>時間到！營業結束</h1>
+        <p>本次成功調配總杯數：</p>
+        <div class="final-score" id="final-score-display">0</div>
+        
+        <div id="upload-section" style="display:none; margin-bottom: 30px;">
+            <input type="text" id="student-name" placeholder="座號 姓名 例如：20 劉哲宏" style="font-size: 28px; padding: 15px; width: 95%; box-sizing: border-box; text-align: center; border-radius: 15px; border: 3px solid #ccc; margin-bottom: 15px; outline:none;">
+            <br>
+            <button id="upload-btn" class="main-btn btn-leaderboard" style="font-size: 28px; padding: 15px 40px;" onclick="uploadScore()">上傳至排行榜</button>
+        </div>
+
+        <button class="btn-back" style="background:#4caf50; box-shadow: 0 8px 0 #388e3c; margin-top: 10px;" onclick="goToMainMenu()">不回傳，直接回主畫面</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="custom-alert-modal" style="z-index: 200;">
+    <div class="modal-content" style="padding: 40px 60px;">
+        <h1 id="custom-alert-title" style="margin-bottom: 20px;">提示</h1>
+        <p id="custom-alert-message" style="font-size: 32px; margin-bottom: 30px;">訊息內容</p>
+        <button id="custom-alert-btn" class="main-btn btn-practice" style="padding: 15px 40px; font-size: 28px;">確定</button>
+    </div>
+</div>
+
+<script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwkUsE3_RIXGqVtmsbWgTsQLbVtdmdlk83c7CQbvPQL2uYbIdJ9MyiBE7c_J4QGgZUKjA/exec'; 
+
+    const ingredientsList = ['紅茶', '鮮奶', '青茶', '冬瓜茶', '綠茶', '百香果汁', '檸檬汁'];
+    const sizes = [360, 480, 600];
+    const sizeNameMap = { 360: '小杯', 480: '中杯', 600: '大杯' };
+    const allTeachers = Array.from({length: 11}, (_, i) => `teacher${i+1}.png`);
+    
+    let teacherPool = [];
+    let orderPool = [];
+
+    const recipes = [
+        { name: '經典奶茶', ratioHTML: '紅茶：鮮奶 = <span>3</span>：<span>1</span>', parts: { '紅茶': 3, '鮮奶': 1 } },
+        { name: '冬瓜青茶', ratioHTML: '青茶：冬瓜茶 = <span>1</span>：<span>1</span>', parts: { '青茶': 1, '冬瓜茶': 1 } },
+        { name: '鮮奶綠茶', ratioHTML: '綠茶：鮮奶 = <span>4</span>：<span>1</span>', parts: { '綠茶': 4, '鮮奶': 1 } },
+        { name: '百香綠茶', ratioHTML: '綠茶：百香果汁 = <span>5</span>：<span>1</span>', parts: { '綠茶': 5, '百香果汁': 1 } },
+        { name: '檸檬紅茶', ratioHTML: '紅茶：檸檬汁 = <span>7</span>：<span>1</span>', parts: { '紅茶': 7, '檸檬汁': 1 } }
+    ];
+
+    const successPhrases = ["太棒了！這杯比例超完美！", "沒錯沒錯！這就是我要的味道！", "好讚！手藝真好！", "對啦！算得真精準！", "一百分！完全符合黃金比例！"];
+    const failPhrases = ["哎呀，味道怪怪的...是不是比例錯了？", "這杯好像不太對喔，再檢查一下總量和配方吧！", "這味道不對耶！請再重新算一次！", "太淡了還是太濃了？好像沒有照比例喔！"];
+
+    let currentScore = 0;
+    let timeLeft = 240;
+    let timerInterval = null;
+    let currentOrder = null;
+    let gameMode = 'practice';
+    let isProcessing = false;
+
+    // --- 音效控制物件 ---
+    const sfx = {
+        click: document.getElementById('snd-click'),
+        success: document.getElementById('snd-success'),
+        fail: document.getElementById('snd-fail'),
+        tick: document.getElementById('snd-tick'),
+        timesup: document.getElementById('snd-timesup'),
+        bgmNormal: document.getElementById('bgm-normal'),
+        bgmTense: document.getElementById('bgm-tense'),
+        
+        playClick: () => { sfx.click.currentTime = 0; sfx.click.play().catch(e=>{}); },
+        playSuccess: () => { sfx.success.currentTime = 0; sfx.success.play().catch(e=>{}); },
+        playFail: () => { sfx.fail.currentTime = 0; sfx.fail.play().catch(e=>{}); },
+        playTick: () => { sfx.tick.currentTime = 0; sfx.tick.play().catch(e=>{}); },
+        playTimesup: () => { sfx.timesup.currentTime = 0; sfx.timesup.play().catch(e=>{}); },
+        
+        stopAllBGM: () => {
+            sfx.bgmNormal.pause(); sfx.bgmNormal.currentTime = 0;
+            sfx.bgmTense.pause(); sfx.bgmTense.currentTime = 0;
+            sfx.tick.pause(); sfx.tick.currentTime = 0; // 同時暫停倒數聲
+        }
+    };
+
+    // 全域監聽按鈕點擊音效
+    document.addEventListener('click', (e) => {
+        if (e.target.tagName.toLowerCase() === 'button') {
+            sfx.playClick();
+        }
+    });
+
+    // --- 客製化提示框系統 ---
+    function showCustomAlert(title, message, callback) {
+        const titleEl = document.getElementById('custom-alert-title');
+        titleEl.textContent = title;
+        titleEl.style.color = (title === '錯誤' || title === '提醒') ? '#d32f2f' : '#4caf50';
+        
+        document.getElementById('custom-alert-message').textContent = message;
+        document.getElementById('custom-alert-modal').style.display = 'flex';
+        
+        document.getElementById('custom-alert-btn').onclick = function() {
+            document.getElementById('custom-alert-modal').style.display = 'none';
+            if (callback) callback();
+        };
+    }
+
+    function initBarrels() {
+        const barrelContainer = document.getElementById('barrel-row-container');
+        barrelContainer.innerHTML = '';
+        ingredientsList.forEach(ing => {
+            const barrelDiv = document.createElement('div');
+            barrelDiv.className = 'barrel-item';
+            barrelDiv.innerHTML = `
+                <div class="barrel-body"><img src="barrel.png" class="barrel-img"><div class="barrel-label">${ing}</div></div>
+                <input type="number" class="barrel-input" id="input-${ing}" min="0" step="10" placeholder="0">
+            `;
+            barrelContainer.appendChild(barrelDiv);
+        });
+    }
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        document.getElementById('game-over-modal').style.display = 'none';
+    }
+
+    function goToMainMenu() {
+        clearInterval(timerInterval);
+        sfx.stopAllBGM();
+        showScreen('main-menu');
+    }
+
+    function uploadScore() {
+        const nameInput = document.getElementById('student-name').value.trim();
+        if(!nameInput) return showCustomAlert('提醒', '請先輸入座號與姓名！');
+        
+        const btn = document.getElementById('upload-btn');
+        btn.textContent = '資料上傳中...';
+        btn.disabled = true;
+
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ name: nameInput, score: currentScore })
+        })
+        .then(() => {
+            showCustomAlert('成功', '成績上傳成功！', () => {
+                goToMainMenu();
+            });
+            btn.textContent = '上傳至排行榜';
+            btn.disabled = false;
+        })
+        .catch(err => {
+            showCustomAlert('錯誤', '上傳失敗，請檢查網路連線或網址設定。');
+            btn.textContent = '上傳至排行榜';
+            btn.disabled = false;
+        });
+    }
+
+    function showLeaderboard() {
+        showScreen('leaderboard-screen');
+        const container = document.getElementById('class-record-list-container');
+        container.innerHTML = '<li class="record-item empty">雲端資料讀取中...</li>';
+
+        fetch(WEB_APP_URL)
+        .then(res => res.json())
+        .then(data => {
+            container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = '<li class="record-item empty">目前排行榜還沒有紀錄喔！</li>';
+                return;
+            }
+            data.forEach((record, index) => {
+                const li = document.createElement('li');
+                li.className = 'record-item';
+                li.innerHTML = `<span>第 ${index + 1} 名：${record.name}</span><span style="color:#d32f2f;">⭐ ${record.score} 杯</span>`;
+                container.appendChild(li);
+            });
+        })
+        .catch(err => {
+            container.innerHTML = '<li class="record-item empty">排行榜讀取失敗，請確認網路或網址設定。</li>';
+        });
+    }
+
+    function saveRecord() {
+        let records = JSON.parse(localStorage.getItem('dulan-tea-records')) || [];
+        const now = new Date();
+        const dateString = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+        records.push({ score: currentScore, date: dateString });
+        if(records.length > 10) records.shift();
+        localStorage.setItem('dulan-tea-records', JSON.stringify(records));
+    }
+
+    function showRecords() {
+        const container = document.getElementById('record-list-container');
+        container.innerHTML = '';
+        let records = JSON.parse(localStorage.getItem('dulan-tea-records')) || [];
+        if (records.length === 0) {
+            container.innerHTML = '<li class="record-item empty">目前還沒有個人紀錄喔！</li>';
+        } else {
+            records.reverse().forEach(record => {
+                const li = document.createElement('li');
+                li.className = 'record-item';
+                li.innerHTML = `<span>📅 ${record.date}</span><span style="color:#d32f2f;">⭐ ${record.score} 杯</span>`;
+                container.appendChild(li);
+            });
+        }
+        showScreen('records-screen');
+    }
+
+    function getRandomTeacher() {
+        if (teacherPool.length === 0) teacherPool = [...allTeachers]; 
+        const randomIndex = Math.floor(Math.random() * teacherPool.length);
+        return teacherPool.splice(randomIndex, 1)[0];
+    }
+    
+    function initOrderPool() {
+        orderPool = [];
+        for (let r of recipes) {
+            for (let s of sizes) {
+                orderPool.push({ recipe: r, size: s });
+            }
+        }
+    }
+
+    function getRandomOrder() {
+        if (orderPool.length === 0) {
+            initOrderPool(); 
+        }
+        const randomIndex = Math.floor(Math.random() * orderPool.length);
+        return orderPool.splice(randomIndex, 1)[0];
+    }
+
+    function startGame(mode) {
+        showScreen('game-container');
+        gameMode = mode;
+        currentScore = 0;
+        teacherPool = [...allTeachers]; 
+        initOrderPool(); 
+        isProcessing = false;
+        
+        document.getElementById('score').textContent = currentScore;
+        clearInterval(timerInterval);
+
+        sfx.stopAllBGM();
+        sfx.bgmNormal.play().catch(e => console.log('BGM Play Prevented by Browser'));
+
+        if (gameMode === 'competition') {
+            timeLeft = 240;
+            document.getElementById('timer-text').textContent = `${timeLeft} 秒`;
+            timerInterval = setInterval(updateTimer, 1000);
+        } else {
+            document.getElementById('timer-text').textContent = '無限制';
+        }
+        generateOrder();
+    }
+
+    function generateOrder() {
+        const randomTeacher = getRandomTeacher();
+        const randomOrderCombo = getRandomOrder();
+        const randomRecipe = randomOrderCombo.recipe;
+        const randomSize = randomOrderCombo.size;
+        const sizeName = sizeNameMap[randomSize];
+
+        currentOrder = { recipe: randomRecipe, size: randomSize };
+
+        document.getElementById('customer-img').src = randomTeacher;
+        document.getElementById('order-size-name').textContent = sizeName;
+        document.getElementById('order-name').textContent = randomRecipe.name;
+        document.getElementById('current-capacity').textContent = `${sizeName}所需總容量：${randomSize} c.c.`;
+        document.getElementById('current-recipe').innerHTML = randomRecipe.ratioHTML;
+
+        ingredientsList.forEach(ing => document.getElementById(`input-${ing}`).value = '');
+    }
+
+    function updateTimer() {
+        timeLeft--;
+        document.getElementById('timer-text').textContent = `${timeLeft} 秒`;
+        
+        if (timeLeft === 30) {
+            sfx.bgmNormal.pause();
+            sfx.bgmTense.play().catch(e => {});
+        }
+        
+        if (timeLeft <= 30 && timeLeft > 0) {
+            sfx.playTick();
+        }
+
+        if (timeLeft <= 0) gameOver();
+    }
+
+    function showFeedback(isSuccess) {
+        const bubble = document.getElementById('feedback-bubble');
+        bubble.className = 'feedback-bubble show ' + (isSuccess ? 'feedback-success' : 'feedback-error');
+        
+        // 確保依照成功與否挑選正確的陣列長度，避免 undefined 錯誤！
+        const phraseArray = isSuccess ? successPhrases : failPhrases;
+        let bubbleContent = phraseArray[Math.floor(Math.random() * phraseArray.length)];
+
+        if (isSuccess) {
+            sfx.playSuccess();
+        } else {
+            sfx.playFail();
+        }
+
+        if (gameMode === 'practice') {
+            bubble.innerHTML = bubbleContent + '<br><span style="font-size: 20px; color: #555; display: inline-block; margin-top: 15px;">👉 點擊畫面繼續 👈</span>';
+            setTimeout(() => {
+                const clickHandler = () => {
+                    document.removeEventListener('click', clickHandler);
+                    bubble.className = 'feedback-bubble ' + (isSuccess ? 'feedback-success' : 'feedback-error');
+                    if (isSuccess) {
+                        currentScore += 1;
+                        document.getElementById('score').textContent = currentScore;
+                        generateOrder();
+                    }
+                    document.getElementById('submit-btn').disabled = false;
+                    isProcessing = false;
+                };
+                document.addEventListener('click', clickHandler);
+            }, 150);
+        } else {
+            bubble.innerHTML = bubbleContent;
+            setTimeout(() => {
+                bubble.className = 'feedback-bubble ' + (isSuccess ? 'feedback-success' : 'feedback-error');
+                if (isSuccess) {
+                    currentScore += 1;
+                    document.getElementById('score').textContent = currentScore;
+                    generateOrder();
+                }
+                document.getElementById('submit-btn').disabled = false;
+                isProcessing = false;
+            }, isSuccess ? 1500 : 2000);
+        }
+    }
+
+    function checkAnswer() {
+        if (!currentOrder || isProcessing) return;
+        if (gameMode === 'competition' && timeLeft <= 0) return;
+
+        isProcessing = true;
+        document.getElementById('submit-btn').disabled = true; 
+
+        let totalInputVolume = 0;
+        let userInputs = {};
+
+        ingredientsList.forEach(ing => {
+            const val = parseInt(document.getElementById(`input-${ing}`).value) || 0;
+            userInputs[ing] = val;
+            totalInputVolume += val;
+        });
+
+        if (totalInputVolume !== currentOrder.size) {
+            showFeedback(false);
+            return;
+        }
+
+        let totalParts = 0;
+        for (let ing in currentOrder.recipe.parts) totalParts += currentOrder.recipe.parts[ing];
+        let volumePerPart = currentOrder.size / totalParts;
+
+        let isCorrect = true;
+        for (let ing of ingredientsList) {
+            const expected = (currentOrder.recipe.parts[ing] || 0) * volumePerPart;
+            if (userInputs[ing] !== expected) { isCorrect = false; break; }
+        }
+
+        showFeedback(isCorrect);
+    }
+
+    function gameOver() {
+        clearInterval(timerInterval);
+        
+        // 時間到：停止所有音樂與倒數音效，並播放哨音
+        sfx.stopAllBGM(); 
+        if (gameMode === 'competition') {
+            sfx.playTimesup();
+        }
+
+        document.getElementById('final-score-display').textContent = currentScore;
+        document.getElementById('game-over-modal').style.display = 'flex';
+        
+        if (gameMode === 'competition') {
+            document.getElementById('upload-section').style.display = 'block';
+            document.getElementById('student-name').value = '';
+        } else {
+            document.getElementById('upload-section').style.display = 'none';
+        }
+        saveRecord();
+    }
+
+    window.onload = () => { initBarrels(); };
+</script>
+
+</body>
+</html>
